@@ -15,15 +15,16 @@
     false))
   (if (instance? clojure.lang.PersistentArrayMap mapObj) 
     (isEveryKeyPresent? query mapObj) 
-    false)
-  )
+    false))
+
 ;runs query on the filtered records
 (defn filterquery [query records] 
   (def newQuery (map #(hash-map (keyword (key %)) (val %)) query)) ;mapping keys from ab to :ab
   (def queryMap (into {} newQuery)) ;from ({} {}) to {}
   (def queryKeys (map #(keyword %) (keys queryMap))) ;contains query keys [:a :b]
   (def recordsWithMatchingKeys (filter #(mapContains? queryMap %) records))
-  (println  queryKeys))
+  (def recordsWithMatchingValues (filter #(= queryMap (select-keys % (vec queryKeys))) recordsWithMatchingKeys))
+  recordsWithMatchingValues)
 
 (defn fetch [path query] 
   (def all-records (jsn/read-str (slurp "/Users/paras/Documents/dev/code/clojure/file-to-api/data.json")
@@ -32,12 +33,12 @@
   (ns-unmap 'file-to-api.json 'all-records) ;freeing memory from original json
   (def filteredRecords (filterKeys (drop 2 path) records))
   (def result (filterquery query filteredRecords))
-  (println filteredRecords)
+  (vec result)
   )
 
 (defn handler [& args]
   (def argMap (first args))
   (def path (str/split (argMap :uri) #"/"))
   (def query (argMap :query-params))
-  (fetch path query)
-  (str args))
+  (def result (fetch path query))
+  (jsn/write-str result))
